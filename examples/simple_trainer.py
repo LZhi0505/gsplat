@@ -259,17 +259,18 @@ class Runner:
         os.makedirs(cfg.result_dir, exist_ok=True)
 
         # Setup output directories.
-        self.ckpt_dir = f"{cfg.result_dir}/ckpts"
+        self.ckpt_dir = f"{cfg.result_dir}/ckpts"   # 模型参数 保存文件夹
         os.makedirs(self.ckpt_dir, exist_ok=True)
-        self.stats_dir = f"{cfg.result_dir}/stats"
+        self.stats_dir = f"{cfg.result_dir}/stats"  # 训练（mem、ellipse_time、num_GS）和评测（PNSR、SSIM、LPIPS、ellipse_time、num_GS）结果 保存文件夹
         os.makedirs(self.stats_dir, exist_ok=True)
-        self.render_dir = f"{cfg.result_dir}/renders"
+        self.render_dir = f"{cfg.result_dir}/renders"   # 在测试迭代次数下 测试集渲染图像 保存文件夹
         os.makedirs(self.render_dir, exist_ok=True)
 
         # Tensorboard
         self.writer = SummaryWriter(log_dir=f"{cfg.result_dir}/tb")
 
-        # Load data: Training data should contain initial points and colors.
+        # 加载数据: 训练数据需包含 初始点云 和 对应颜色
+        # 创建COLMAP Parser
         self.parser = Parser(
             data_dir=cfg.data_dir,
             factor=cfg.data_factor,
@@ -680,7 +681,7 @@ class Runner:
                     self.writer.add_image("train/render", canvas, step)
                 self.writer.flush()
 
-            # save checkpoint before updating the model
+            # 到达save_steps，保存 checkpoint
             if step in [i - 1 for i in cfg.save_steps] or step == max_steps - 1:
                 mem = torch.cuda.max_memory_allocated() / 1024**3
                 stats = {
@@ -775,14 +776,14 @@ class Runner:
             else:
                 assert_never(self.cfg.strategy)
 
-            # eval the full set
+            # 到达eval_steps，渲染测试视角图像、生成渲染轨迹视频、保存模型
             if step in [i - 1 for i in cfg.eval_steps]:
                 self.eval(step)
                 self.render_traj(step)
 
                 self.save_ply(os.path.join(cfg.result_dir, "point_cloud/iteration_{}.ply".format(step)))
 
-            # run compression
+            # 到达eval_steps 且 要压缩模型，则执行压缩
             if cfg.compression is not None and step in [i - 1 for i in cfg.eval_steps]:
                 self.run_compression(step=step)
 
@@ -1071,6 +1072,53 @@ def main(local_rank: int, world_rank, world_size: int, cfg: Config):
         time.sleep(1000000)
 
 
+def update_recursive(base_dict, cfg_dict):
+    """Recursively updates base_dict by using cfg_dict"""
+    for k, v in cfg_dict.items():
+        if k not in base_dict:
+            base_dict[k] = dict()
+
+        if isinstance(v, dict):
+            update_recursive(base_dict[k], v)
+        else:
+            base_dict[k] = v
+
+def update_recursive_deepcopy(base_dict, cfg_dict):
+    import copy
+    base_dict_copy = copy.deepcopy(base_dict)
+    update_recursive(base_dict_copy, cfg_dict)
+    return base_dict_copy
+
+def load_config(config_file, strategy_config_file=None):
+    with open(config_file, 'r') as f:
+        cfg = yaml.load(f, Loader=yaml.Loader)
+
+    base_config_file = cfg.get('base_config_file')
+    if base_config_file is not None:
+        cfg_base = load_config(base_config_file)
+    else:
+        cfg_base = dict()
+    update_recursive(cfg_base, cfg)
+
+    if (strategy_config_file is not None) and (config_file != strategy_config_file):
+        cfg_strategy = load_config(strategy_config_file)
+        update_recursive(cfg_base, cfg_strategy)
+    return cfg_base
+
+def parse_config():
+    cfg_settings = load_config(config_file=os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), f"config/3dgs/config.yaml"))
+
+    gs_type = cfg_settings['gs_type']
+    strategy_type = cfg_settings['strategy']
+    cfg = load_config(
+        config_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), f"config/3dgs/{gs_type}.yaml"),
+        strategy_config_file=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))), f"config/3dgs/strategy_{strategy_type}.yaml"),
+    )
+
+    return cfg_settings, cfg
+
+
 if __name__ == "__main__":
     """
     Usage:
@@ -1086,6 +1134,9 @@ if __name__ == "__main__":
 
     # Config objects we can choose between.
     # Each is a tuple of (CLI description, config object).
+    cfg_settings, cfg = parse_config()
+    print("\tcfg: \n", cfg)
+
     configs = {
         "default": (
             "Gaussian splatting training using densification heuristics from the original paper.",

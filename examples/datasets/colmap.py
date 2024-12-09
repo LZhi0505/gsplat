@@ -1,6 +1,8 @@
 import os
 import json
 from typing import Any, Dict, List, Optional
+
+from trimesh.path.packing import images
 from typing_extensions import assert_never
 
 import cv2
@@ -165,7 +167,8 @@ class Parser:
         colmap_files = sorted(_get_rel_paths(colmap_image_dir)) # garden/images下所有图像的 相对路径
         image_files = sorted(_get_rel_paths(image_dir))         # garden/images_2下所有图像的 相对路径
         colmap_to_image = dict(zip(colmap_files, image_files))
-        image_paths = [os.path.join(image_dir, colmap_to_image[f]) for f in image_names]    # 重映射图像路径，garden/images_2/000000.jpg
+        image_paths = [os.path.join(image_dir, colmap_to_image[f]) for f in image_names if os.path.exists(os.path.join(colmap_image_dir, f))]    # 重映射图像路径，garden/images_2/000000.jpg
+        assert len(image_paths) == len(image_names), "len(image_paths) != len(image_names), some images are missing in the image folder."
 
         # 获取 3D点云 和 每个图像中与点云关联的3D点索引{image_name -> [point_idx]}
         points = manager.points3D.astype(np.float32)
@@ -318,11 +321,13 @@ class Dataset:
         self.split = split
         self.patch_size = patch_size
         self.load_depths = load_depths
-        indices = np.arange(len(self.parser.image_names))
+        indices = np.arange(len(self.parser.image_paths))
         if split == "train":
-            self.indices = indices[indices % self.parser.test_every != 0]
+            self.indices = indices
+            # self.indices = indices[indices % self.parser.test_every != 0]
         else:
-            self.indices = indices[indices % self.parser.test_every == 0]
+            self.indices = [indices for indices in range(5, 30, 5)]
+            # self.indices = indices[indices % self.parser.test_every == 0]
 
     def __len__(self):
         return len(self.indices)

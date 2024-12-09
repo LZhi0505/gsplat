@@ -1,0 +1,72 @@
+disable_viewer: True  # Disable viewer
+ckpt: []    # Path to the .pt files. If provide, it will skip training and run evaluation only. [.pt, None]
+compression: null   # Name of compression strategy to use. [png, None]
+
+render_traj_path: "interp"  # Render trajectory path
+
+data_dir: "data/360_v2/garden"  # Path to the Mip-NeRF 360 dataset
+data_factor: 4      # Downsample factor for the dataset
+result_dir: "results/garden"    # Directory to save results
+
+test_every: 8       # Every N images there is a test image
+patch_size: null    # Random crop size for training  (experimental). [int, None]
+global_scale: 1.0   # A global scaler that applies to the scene size related parameters
+
+normalize_world_space: True   # Normalize the world space
+camera_model: "pinhole"       # Camera model. ["pinhole", "ortho", "fisheye"]
+
+port: 8080      # Port for the viewer server
+
+batch_size: 1   # Batch size for training. Learning rates are scaled automatically
+steps_scaler: 1.0     # A global factor to scale the number of training steps
+
+max_steps: 30_000             # Number of training steps
+eval_steps: [7_000, 30_000]   # Steps to evaluate the model
+save_steps: [7_000, 30_000]   # Steps to save the model
+
+initializa:
+  init_type: "sfm"        # Initialization strategy
+  init_num_pts: 100_000   # Initial number of GSs. Ignored if using sfm
+  init_extent: 3.0        # Initial extent of GSs as a multiple of the camera extent. Ignored if using sfm
+
+gs_params:
+  sh_degree: 3              # Degree of spherical harmonics
+  sh_degree_interval: 1000  # Turn on another SH degree every this steps
+
+  init_opa: 0.1     # Initial opacity of GS
+  init_scale: 1.0   # Initial scale of GS
+
+training_params:
+  ssim_lambda: 0.2    # Weight for SSIM loss
+
+  near_plane: 0.01    # Near plane clipping distance
+  far_plane: 10000000000.0    # Far plane clipping distance
+
+packed: false           # Use packed mode for rasterization, this leads to less memory usage but slightly slower.
+sparse_grad: false      # Use sparse gradients for optimization. (experimental)
+visible_adam: false     # Use visible adam from Taming 3DGS. (experimental)
+antialiased: false      # Anti-aliasing in rasterization. Might slightly hurt quantitative metrics.
+random_bkgd: false      # Use random background for training to discourage transparency
+
+opacity_reg: 0.0    # Opacity regularization
+scale_reg: 0.0      # Scale regularization
+
+pose_opt: false      # Enable camera optimization.
+pose_opt_lr: 1e-5   # Learning rate for camera optimization
+pose_opt_reg: 1e-6  # Regularization for camera optimization as weight decay
+pose_noise: 0.0     # Add noise to camera extrinsics. This is only to test the camera pose optimization.
+app_opt: false       # Enable appearance optimization. (experimental)
+
+app_embed_dim: 16     # Appearance embedding dimension
+app_opt_lr: 1e-3    # Learning rate for appearance optimization
+app_opt_reg: 1e-6   # Regularization for appearance optimization as weight decay
+
+use_bilateral_grid: false    # Enable bilateral grid. (experimental)
+
+bilateral_grid_shape: [16, 16, 8]    # Shape of the bilateral grid (X, Y, W)
+depth_loss: false    # Enable depth loss. (experimental)
+depth_lambda: 0.01  # Weight for depth loss
+
+tb_every: 100         # Dump information to tensorboard every this steps
+tb_save_image: false # Save training images to tensorboard
+# lpips_net: "alex" ["vgg", "alex"]

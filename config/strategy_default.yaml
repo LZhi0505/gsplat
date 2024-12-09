@@ -1,0 +1,16 @@
+prune_opa: 0.005
+grow_grad2d: 0.0002
+grow_scale3d: 0.01
+grow_scale2d: 0.05
+prune_scale3d: 0.1
+prune_scale2d: 0.15
+refine_scale2d_stop_iter: 0
+refine_start_iter: 500
+refine_stop_iter: 15_000
+reset_every: 3000
+refine_every: 100
+pause_refine_after_reset: 0
+absgrad: false
+revised_opacity: false
+verbose: false
+key_for_gradient: "means2d"   # ["means2d", "gradient_2dgs"]

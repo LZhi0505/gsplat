@@ -1,0 +1,4 @@
+base_config_file: /nhrecon/config/3dgs/base.yaml
+gs_type: 3DGS         # 3DGS / 2DGS
+strategy: "default"   # Strategy for GS densification. ["default", "mcmc"]
+is_distributed: false     # 是否分布式训练
